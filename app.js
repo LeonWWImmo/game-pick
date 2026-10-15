@@ -3,16 +3,13 @@
   const KEY = "gamepick.v1";
 
   // ---------- state (per Browser, bleibt bei Reload) ----------
-  const fresh = () => ({ votes: {}, order: [], manual: false, voter: uid(), sent: false, myIdeas: [] });
+  const fresh = () => ({ votes: {}, order: [], manual: false, voter: "", sent: false });
   let S = fresh();
   try { S = { ...S, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch {}
-  if (!Array.isArray(S.order) || !Array.isArray(S.myIdeas) || typeof S.votes !== "object" || !S.votes) S = fresh();
+  if (!Array.isArray(S.order) || typeof S.votes !== "object" || !S.votes) S = fresh();
+  if (!/^\d+$/.test(S.voter)) S.voter = ""; // alte Zufalls-IDs verwerfen
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
   save();
-
-  function uid() {
-    return (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).slice(0, 13);
-  }
 
   const THUMB = `<svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
   const THUMB_DOWN = THUMB.replace("<path", '<g transform="rotate(180 12 12)"><path').replace("</svg>", "</g></svg>");
@@ -28,6 +25,18 @@
     `<img src="${logo(g)}" alt="" data-name="${g.name}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'mq-txt',textContent:this.dataset.name}))"><span class="sep">✦</span>`
   ).join("");
   $("#marquee").innerHTML = mq + mq;
+
+  // ---------- geheime Zahl ----------
+  const voterInput = $("#voterInput");
+  voterInput.value = S.voter;
+  voterInput.addEventListener("input", () => (voterInput.value = voterInput.value.replace(/\D/g, "")));
+  $("#idForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = voterInput.value.replace(/\D/g, "");
+    if (!v) return voterInput.focus();
+    if (v !== S.voter) { S.voter = v; S.sent = false; save(); refresh(); }
+    $("#games").scrollIntoView({ behavior: "smooth" });
+  });
 
   // ---------- cards ----------
   const pips = (n) => [0, 1, 2].map((i) => `<i class="${i < n ? "on" : ""}"></i>`).join("");
@@ -171,6 +180,9 @@
     if (!done) {
       submit.classList.add("locked");
       submit.textContent = `Noch ${all - n} Game${all - n > 1 ? "s" : ""} bewerten ↑`;
+    } else if (!S.voter) {
+      submit.classList.add("locked");
+      submit.textContent = "Zuerst deine Zahl eingeben ↑";
     } else if (S.sent) {
       submit.classList.add("done");
       submit.textContent = "✓ Gesendet · nochmal senden";
@@ -186,10 +198,11 @@
   };
   addEventListener("scroll", onScroll, { passive: true });
 
+  // String-Body = text/plain → kein CORS-Preflight, Apps Script liefert JSON zurück
   async function post(data) {
     if (!CONFIG.endpoint) throw new Error("no endpoint");
-    // no-cors: Apps Script antwortet ohne CORS-Header, Antwort ist opak
-    await fetch(CONFIG.endpoint, { method: "POST", mode: "no-cors", body: JSON.stringify(data) });
+    const res = await fetch(CONFIG.endpoint, { method: "POST", body: JSON.stringify(data) });
+    return res.json();
   }
 
   submit.addEventListener("click", async () => {
@@ -200,16 +213,22 @@
       c.animate([{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(10px)" }, { transform: "translateX(0)" }], { duration: 400, delay: 500 });
       return;
     }
+    if (!S.voter) {
+      $(".hero").scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => voterInput.focus({ preventScroll: true }), 600);
+      return toast("Zuerst deine geheime Zahl eingeben", true);
+    }
     if (!CONFIG.endpoint) return toast("Noch kein Endpoint eingerichtet (data.js → CONFIG.endpoint)", true);
     submit.classList.add("busy");
     submit.textContent = "Sende…";
     const order = currentOrder();
     try {
-      await post({
+      const r = await post({
         type: "vote",
         voter: S.voter,
         votes: GAMES.map((g) => ({ game: g.name, vote: S.votes[g.id], rank: order.indexOf(g.id) + 1 })),
       });
+      if (!r.ok) throw new Error(r.error);
       S.sent = true; save();
       burst(submit, ["#c6ff3d", "#2ef2ff", "#a46bff", "#ff2e6e", "#fff"], 70, 260);
       toast("Drin! Danke fürs Voten 🎮");
@@ -219,33 +238,96 @@
     refresh();
   });
 
-  // ---------- ideas ----------
-  function renderIdeas() {
-    const list = $("#ideaList");
-    list.innerHTML = "";
-    const all = [...IDEAS.map((n) => [n, false]), ...S.myIdeas.map((n) => [n, true])];
-    if (!all.length) list.innerHTML = `<li class="empty">Noch leer. Hau was rein ↓</li>`;
-    all.forEach(([name, mine], i) => {
+  // ---------- ideas (Liste kommt live aus dem Sheet) ----------
+  const ideaList = $("#ideaList");
+  let ideas = null, adminPw = "";
+
+  function renderIdeas(msg) {
+    ideaList.innerHTML = "";
+    if (msg || !ideas.length) {
+      ideaList.innerHTML = `<li class="empty"></li>`;
+      ideaList.firstChild.textContent = msg || "Noch leer. Hau was rein ↓";
+      return;
+    }
+    ideas.forEach((idea, i) => {
       const li = document.createElement("li");
-      li.className = mine ? "mine" : "";
       li.innerHTML = `<span class="mono">${String(i + 1).padStart(2, "0")}</span>`;
-      li.append(name);
-      list.append(li);
+      li.append(idea.name);
+      if (adminPw) {
+        const del = document.createElement("button");
+        del.className = "idea-del";
+        del.textContent = "✕";
+        del.setAttribute("aria-label", "Löschen");
+        del.dataset.id = idea.id;
+        li.append(del);
+      }
+      ideaList.append(li);
     });
   }
+
+  async function loadIdeas() {
+    if (!CONFIG.endpoint) return renderIdeas("Noch kein Endpoint eingerichtet.");
+    renderIdeas("Lädt…");
+    try {
+      const r = await (await fetch(CONFIG.endpoint)).json();
+      ideas = r.ideas || [];
+      renderIdeas();
+    } catch {
+      renderIdeas("Ideen konnten nicht geladen werden.");
+    }
+  }
+
   $("#ideaForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const input = $("#ideaInput"), name = input.value.trim();
     if (!name) return;
     if (!CONFIG.endpoint) return toast("Noch kein Endpoint eingerichtet (data.js → CONFIG.endpoint)", true);
     try {
-      await post({ type: "idea", idea: name });
-      S.myIdeas.push(name); save(); renderIdeas();
+      const r = await post({ type: "idea", idea: name });
+      if (!r.ok) throw new Error(r.error);
+      ideas = r.ideas; renderIdeas();
       input.value = "";
       burst(e.submitter || input, ["#c6ff3d", "#fff"], 12, 70);
       toast("Idee geschickt 💡");
     } catch {
       toast("Senden fehlgeschlagen.", true);
+    }
+  });
+
+  // ---------- admin (Passwort wird nur im Apps Script geprüft) ----------
+  $("#adminLink").addEventListener("click", () => {
+    const f = $("#adminForm");
+    f.hidden = false;
+    f.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => $("#adminPw").focus({ preventScroll: true }), 500);
+  });
+  $("#adminForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = $("#adminPw").value;
+    if (!pw) return;
+    try {
+      const r = await post({ type: "admin", pw });
+      if (!r.ok) return toast("Falsches Passwort", true);
+      adminPw = pw;
+      $("#adminForm").hidden = true;
+      toast("Admin-Modus: ✕ zum Löschen");
+      if (ideas) renderIdeas();
+    } catch {
+      toast("Login fehlgeschlagen.", true);
+    }
+  });
+  ideaList.addEventListener("click", async (e) => {
+    const del = e.target.closest(".idea-del");
+    if (!del || !adminPw) return;
+    del.disabled = true;
+    try {
+      const r = await post({ type: "deleteIdea", pw: adminPw, id: del.dataset.id });
+      if (!r.ok) throw new Error(r.error);
+      ideas = r.ideas; renderIdeas();
+      toast("Gelöscht");
+    } catch {
+      del.disabled = false;
+      toast("Löschen fehlgeschlagen.", true);
     }
   });
 
@@ -272,7 +354,7 @@
     tt = setTimeout(() => (t.className = "toast" + (err ? " err" : "")), 3200);
   }
 
-  renderIdeas();
+  loadIdeas();
   refresh();
   onScroll();
 })();

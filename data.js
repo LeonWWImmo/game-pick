@@ -8,12 +8,6 @@ const CONFIG = {
   endpoint: "https://script.google.com/macros/s/AKfycbxJd0_rrSPIWemP6zGi8wt9qRSPiuBoFsPT39270mXDcgu9tE_9ZnqoD_xJZyGuEWWgeA/exec",
 };
 
-// Game-Ideen ganz unten auf der Seite. Einfach Namen hinzufügen.
-const IDEAS = [
-  // "Valheim",
-  // "Satisfactory",
-];
-
 // vibe: 0–3  (grind / story / chill)
 // yt: YouTube Video-ID des Trailers
 const GAMES = [

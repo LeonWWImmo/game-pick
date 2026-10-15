@@ -6,15 +6,16 @@ Statt endloser Diskussion im Chat bewertet jeder die Kandidaten selbst, sortiert
 
 ## So funktioniert's
 
-1. **Games anschauen**: jedes Game mit Titelbild, Trailer und kurzer Erklärung. Ein Vibe-Meter zeigt auf einen Blick, wie viel **Grind**, **Story** und **Chill** drinsteckt.
-2. **Daumen hoch / runter**: schnelles Bauchgefühl pro Game.
-3. **Ranking ziehen**: die eigene Liste per Drag & Drop sortieren. Platz 1 = will ich am meisten.
-4. **Abschicken**: anonym. Wer seine Meinung ändert, schickt einfach nochmal; es zählt nur die neuste Abgabe.
-5. **Game-Ideen**: unten können neue Games für die nächste Runde vorgeschlagen werden.
+1. **Geheime Zahl wählen**: irgendeine Zahl, egal wie gross. Sie ist deine Stimme: wer später die gleiche Zahl eingibt, ändert seine Abstimmung statt eine zweite zu erstellen.
+2. **Games anschauen**: jedes Game mit Titelbild, Trailer und kurzer Erklärung. Ein Vibe-Meter zeigt auf einen Blick, wie viel **Grind**, **Story** und **Chill** drinsteckt.
+3. **Daumen hoch / runter**: schnelles Bauchgefühl pro Game.
+4. **Ranking ziehen**: die eigene Liste per Drag & Drop sortieren. Platz 1 = will ich am meisten.
+5. **Abschicken**: anonym, nur mit der Zahl.
+6. **Game-Ideen**: unten kann jeder neue Games für die nächste Runde vorschlagen. Die Liste ist für alle sichtbar; der Admin kann Vorschläge löschen.
 
 ## Anonym
 
-Es gibt kein Login und keinen Namen. Jeder Browser erzeugt nur eine zufällige ID, damit ein erneutes Abschicken die alte Abgabe ersetzt. Die Resultate landen in einem privaten Google Sheet, das nur der Admin sieht, inklusive automatischer Auswertung (👍, 👎, Ø Rang).
+Es gibt kein Login und keinen Namen, nur die selbst gewählte Zahl. Die Resultate landen in einem privaten Google Sheet, das nur der Admin sieht, inklusive automatischer Auswertung (👍, 👎, Ø Rang).
 
 ## Aktuelle Kandidaten
 
@@ -22,4 +23,4 @@ SAND: Raiders of Sophie · Enshrouded · Conan Exiles · Soulmask · 7 Days to D
 
 ## Technik
 
-Reines HTML, CSS und JavaScript ohne Build-Step, gehostet auf GitHub Pages. Spieldaten in `data.js`, Empfänger für die Stimmen in `apps-script.gs` (Google Apps Script). Bilder von Steam, Trailer von YouTube. Fan-Projekt ohne kommerzielle Absicht.
+Reines HTML, CSS und JavaScript ohne Build-Step, gehostet auf GitHub Pages. Spieldaten in `data.js`, Empfänger für Stimmen und Ideen in `apps-script.gs` (Google Apps Script). Das Admin-Passwort liegt nicht im Code, sondern in den Skript-Eigenschaften des Apps Scripts. Bilder von Steam, Trailer von YouTube. Fan-Projekt ohne kommerzielle Absicht.

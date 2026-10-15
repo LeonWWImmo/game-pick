@@ -33,11 +33,19 @@
       <span><b>100% anonym.</b> Kein Name, kein Login. Niemand sieht, was du gewählt hast.</span>
     </p>
     <ol class="steps">
-      <li><span class="mono">01</span> Daumen hoch / runter</li>
-      <li><span class="mono">02</span> Ranking ziehen</li>
-      <li><span class="mono">03</span> Abschicken</li>
+      <li><span class="mono">01</span> Zahl wählen</li>
+      <li><span class="mono">02</span> Daumen hoch / runter</li>
+      <li><span class="mono">03</span> Ranking ziehen</li>
+      <li><span class="mono">04</span> Abschicken</li>
     </ol>
-    <a href="#games" class="cta">Los geht's <span aria-hidden="true">↓</span></a>
+    <form class="idform" id="idForm" autocomplete="off">
+      <label for="voterInput" class="mono">Deine geheime Zahl</label>
+      <div class="idrow">
+        <input id="voterInput" inputmode="numeric" pattern="[0-9]+" maxlength="40" placeholder="z.B. 48213" required>
+        <button type="submit" class="cta">Los geht's <span aria-hidden="true">↓</span></button>
+      </div>
+      <p class="idhint">Merk sie dir. Später gleiche Zahl eingeben = Abstimmung ändern. Nimm eine, die sonst keiner hat.</p>
+    </form>
     <div class="marquee" aria-hidden="true"><div class="track" id="marquee"></div></div>
   </header>
 
@@ -62,7 +70,7 @@
 
       <div class="submit-box">
         <button class="submit" id="submit"></button>
-        <p class="submit-note mono" id="submitNote">Anonym · du kannst später nochmal senden, dann zählt nur das Neuste.</p>
+        <p class="submit-note mono" id="submitNote">Anonym · mit gleicher Zahl nochmal senden = alte Abstimmung wird ersetzt.</p>
       </div>
     </section>
 
@@ -77,10 +85,14 @@
         <input id="ideaInput" maxlength="60" placeholder="Game vorschlagen…" aria-label="Game vorschlagen">
         <button type="submit" aria-label="Vorschlag senden">+</button>
       </form>
+      <form class="admin-form" id="adminForm" autocomplete="off" hidden>
+        <input type="password" id="adminPw" inputmode="numeric" placeholder="Admin-Passwort" aria-label="Admin-Passwort">
+        <button type="submit">Login</button>
+      </form>
     </section>
   </main>
 
-  <footer class="mono">GAME PICK · made for the squad</footer>
+  <footer class="mono">GAME PICK · made for the squad · <button class="admin-link" id="adminLink">Admin</button></footer>
 
   <!-- HUD -->
   <div class="hud" id="hud">
