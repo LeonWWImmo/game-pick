@@ -1,0 +1,150 @@
+// ============================================================
+//  HIER EDITIEREN
+// ============================================================
+
+// Google Apps Script Web-App URL (siehe README.md, Schritt 2).
+// Leer = Abschicken deaktiviert.
+const CONFIG = {
+  endpoint: "https://script.google.com/macros/s/AKfycbxJd0_rrSPIWemP6zGi8wt9qRSPiuBoFsPT39270mXDcgu9tE_9ZnqoD_xJZyGuEWWgeA/exec",
+};
+
+// Game-Ideen ganz unten auf der Seite. Einfach Namen hinzufügen.
+const IDEAS = [
+  // "Valheim",
+  // "Satisfactory",
+];
+
+// vibe: 0–3  (grind / story / chill)
+// yt: YouTube Video-ID des Trailers
+const GAMES = [
+  {
+    id: "sand",
+    name: "SAND: Raiders of Sophie",
+    tagline: "Deine Festung läuft auf Beinen.",
+    text: "Mech-Walker bauen, Wüste plündern, mit der Beute lebend raus. Andere Squads jagen dich.",
+    tags: ["Trampler bauen", "Looten", "Extrahieren", "PvP"],
+    vibe: { grind: 2, story: 0, chill: 1 },
+    badge: "PvPvE",
+    yt: "zkH4dKTLfr4",
+    steam: 1431300,
+  },
+  {
+    id: "enshrouded",
+    name: "Enshrouded",
+    tagline: "Nebel-Königreich zurückerobern.",
+    text: "Action-RPG-Survival: Bosse legen, Klasse bauen, alles überall bauen. Terrain komplett formbar.",
+    tags: ["Bosse", "Skilltree", "Base-Bau", "Erkunden"],
+    vibe: { grind: 2, story: 2, chill: 2 },
+    badge: "1.0 ist raus",
+    yt: "gp7PZXkyxxY",
+    steam: 1203620,
+  },
+  {
+    id: "conan",
+    name: "Conan Exiles",
+    tagline: "Brutal überleben. Riesige Burgen.",
+    text: "Hardcore-Survival in Hyboria, jetzt auf Unreal Engine 5. Thralls versklaven, Festung bauen, Götter beschwören.",
+    tags: ["Thralls", "Burgen", "Kämpfen", "Götter"],
+    vibe: { grind: 3, story: 1, chill: 1 },
+    badge: "UE5 Enhanced",
+    yt: "z5b-l29mzew",
+    steam: 440900,
+  },
+  {
+    id: "soulmask",
+    name: "Soulmask",
+    tagline: "Ein Stamm. Du steuerst alle.",
+    text: "Stamm aufbauen, Leute rekrutieren und übernehmen, Produktion automatisieren. Riesige Urzeit-Welt.",
+    tags: ["Stamm", "Automation", "Kämpfen", "Erkunden"],
+    vibe: { grind: 3, story: 1, chill: 1 },
+    badge: "1.0",
+    yt: "mwBwOeUPzFE",
+    steam: 2646460,
+  },
+  {
+    id: "7dtd",
+    name: "7 Days to Die",
+    tagline: "Alle 7 Tage: Blutmond.",
+    text: "Zombie-Survival: looten, Base befestigen, Fallen bauen und jede 7. Nacht die Horde überleben.",
+    tags: ["Base verteidigen", "Looten", "Craften", "Horde"],
+    vibe: { grind: 2, story: 0, chill: 1 },
+    badge: "Zombies",
+    yt: "kikTJaVBank",
+    steam: 251570,
+  },
+  {
+    id: "astroneer",
+    name: "Astroneer",
+    tagline: "Planeten formen wie Knete.",
+    text: "Chilliges Weltraum-Sandbox: Terrain umformen, Basis bauen, Produktion automatisieren, Planeten bereisen.",
+    tags: ["Terraformen", "Automation", "Raumfahrt", "Erkunden"],
+    vibe: { grind: 1, story: 1, chill: 3 },
+    yt: "0KXQZG7riEs",
+    steam: 361420,
+  },
+  {
+    id: "windrose",
+    name: "Windrose",
+    tagline: "Piraten. Schiff. Beute.",
+    text: "PvE-Survival im Piratenzeitalter: eigenes Schiff, Seeschlachten, Soulslite-Kämpfe gegen fette Bosse.",
+    tags: ["Seeschlachten", "Bosse", "Base-Bau", "Schätze"],
+    vibe: { grind: 2, story: 2, chill: 1 },
+    badge: "Early Access",
+    yt: "lfNBIQqy19o",
+    steam: 3041230,
+  },
+  {
+    id: "vrising",
+    name: "V Rising",
+    tagline: "Werde Vampir. Meide die Sonne.",
+    text: "Blut jagen, Schloss bauen, Bosse aussaugen und ihre Kräfte klauen. Schnelle Action von oben.",
+    tags: ["Bosse jagen", "Schloss", "Skills", "Sonne meiden"],
+    vibe: { grind: 2, story: 1, chill: 1 },
+    yt: "aB_2ZRn9F_k",
+    steam: 1604030,
+  },
+  {
+    id: "corekeeper",
+    name: "Core Keeper",
+    tagline: "Graben. Farmen. Bosse.",
+    text: "Gemütliches Mining-Abenteuer für bis zu 8 Leute: Höhlen graben, farmen, Basis bauen, Bosse legen.",
+    tags: ["Minen", "Farmen", "Bosse", "Basis"],
+    vibe: { grind: 2, story: 1, chill: 3 },
+    yt: "BDeKh18TLSI",
+    steam: 1621690,
+  },
+  {
+    id: "minecraft",
+    name: "Minecraft Modded",
+    tagline: "Vanilla war gestern.",
+    text: "Eigener Server mit Modpack: Fabriken mit Create, Tech, Magie, neue Dimensionen. Pack wählen wir zusammen.",
+    tags: ["Fabriken", "Tech & Magie", "Bauen", "Eigener Server"],
+    vibe: { grind: 3, story: 0, chill: 2 },
+    badge: "Server",
+    yt: "tz5maMNgWqE",
+  },
+  {
+    id: "ark",
+    name: "ARK: Survival Ascended",
+    tagline: "Neuer Run. Alles neu.",
+    text: "Kennen wir. Diesmal komplett frisch:",
+    twist: ["Neue Map", "Neue Mods", "Neue Dinos", "Neuer Content", "Hardcore optional"],
+    tags: ["Dinos zähmen", "Züchten", "Tribe-Base", "Bosse"],
+    vibe: { grind: 3, story: 1, chill: 1 },
+    badge: "Comeback",
+    yt: "0fPUJxAW56Y",
+    steam: 2399830,
+  },
+  {
+    id: "palworld",
+    name: "Palworld Hardcore",
+    tagline: "Diesmal musst du richtig dodgen.",
+    text: "Kennen wir. Jetzt auf Hardcore, das Game richtig erleben:",
+    twist: ["Langsamer leveln", "4× Pal-Schaden gegen dich", "Pals sterben nicht", "+ Mods für Content"],
+    tags: ["Pals fangen", "Dodgen", "Base-Automation", "Mods"],
+    vibe: { grind: 3, story: 1, chill: 0 },
+    badge: "Comeback · Hardcore",
+    yt: "1fpGg9wNM9A",
+    steam: 1623730,
+  },
+];
