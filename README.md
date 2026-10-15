@@ -15,7 +15,7 @@ Statt endloser Diskussion im Chat bewertet jeder die Kandidaten selbst, sortiert
 
 ## Anonym
 
-Es gibt kein Login und keinen Namen, nur die selbst gewählte Zahl. Die Resultate landen in einem privaten Google Sheet, das nur der Admin sieht, inklusive automatischer Auswertung (👍, 👎, Ø Rang).
+Es gibt kein Login und keinen Namen, nur die selbst gewählte Zahl. Die Resultate landen in einem privaten Google Sheet, das nur der Admin sieht, inklusive automatischer Zusammenfassung (Favorit, Top 3, Teilnehmer) und Auswertung pro Game (👍, 👎, 😐 neutral, Ø Rang).
 
 ## Aktuelle Kandidaten
 

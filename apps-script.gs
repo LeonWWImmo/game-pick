@@ -41,8 +41,9 @@ function doPost(e) {
         now, "'" + voter, clean_(v.game, 60),   // ' = als Text speichern (sonst wird aus 0042 → 42)
         v.vote === 1 ? 1 : 0, v.vote === -1 ? 1 : 0,
         Math.max(0, Math.min(99, parseInt(v.rank, 10) || 0)),
+        v.vote === 1 || v.vote === -1 ? 0 : 1,   // neutral = nicht reagiert
       ]);
-      if (out.length) sh.getRange(sh.getLastRow() + 1, 1, out.length, 6).setValues(out);
+      if (out.length) sh.getRange(sh.getLastRow() + 1, 1, out.length, 7).setValues(out);
       return json_({ ok: true });
     }
 
@@ -114,9 +115,11 @@ function clean_(s, max) {
 function setup_(ss) {
   if (!ss.getSheetByName("Stimmen")) {
     const sh = ss.insertSheet("Stimmen");
-    sh.appendRow(["Zeit", "Person (Zahl)", "Game", "Daumen hoch", "Daumen runter", "Rang"]);
+    sh.appendRow(["Zeit", "Person (Zahl)", "Game", "Daumen hoch", "Daumen runter", "Rang", "Neutral"]);
     sh.setFrozenRows(1);
   }
+  const stimmen = ss.getSheetByName("Stimmen");
+  if (!stimmen.getRange("G1").getValue()) stimmen.getRange("G1").setValue("Neutral");
   if (!ss.getSheetByName("Ideen")) {
     const sh = ss.insertSheet("Ideen");
     sh.appendRow(["Zeit", "Idee", "ID"]);
@@ -124,12 +127,43 @@ function setup_(ss) {
   }
   const ideen = ss.getSheetByName("Ideen");
   if (!ideen.getRange("C1").getValue()) ideen.getRange("C1").setValue("ID");
-  if (!ss.getSheetByName("Auswertung")) {
-    const sh = ss.insertSheet("Auswertung", 0);
-    sh.getRange("A1").setFormula(
-      "=QUERY(Stimmen!A:F, \"select C, sum(D), sum(E), avg(F), count(C) where C is not null group by C order by avg(F) asc " +
-      "label C 'Game', sum(D) '👍', sum(E) '👎', avg(F) 'Ø Rang', count(C) 'Stimmen'\", 1)"
+  const auswertung = ss.getSheetByName("Auswertung") || ss.insertSheet("Auswertung", 0);
+  if (auswertung.getRange("A1").getFormula().indexOf("Neutral") < 0) {
+    auswertung.getRange("A1").setFormula(
+      "=QUERY(Stimmen!A:G, \"select C, sum(D), sum(E), sum(G), avg(F), count(C) where C is not null group by C order by avg(F) asc " +
+      "label C 'Game', sum(D) '👍', sum(E) '👎', sum(G) '😐 Neutral', avg(F) 'Ø Rang', count(C) 'Stimmen'\", 1)"
     );
-    sh.setFrozenRows(1);
+    auswertung.setFrozenRows(1);
   }
+  if (!ss.getSheetByName("Zusammenfassung")) summary_(ss.insertSheet("Zusammenfassung", 0));
+}
+
+// Übersichtsblatt: Kennzahlen + Top 3 (alles Formeln, aktualisiert sich selbst)
+function summary_(sh) {
+  // agg z.B. "avg(F)"; nur die Game-Spalte wird ausgegeben
+  const top = (agg, dir, n) =>
+    "=IFERROR(INDEX(QUERY(Stimmen!A:F, \"select C, " + agg + " where C is not null group by C order by " + agg + " " + dir +
+    " limit " + n + " label C '', " + agg + " ''\", 1), 0, 1), \"–\")";
+  sh.getRange("A1").setValue("🎮 GAME PICK · Zusammenfassung");
+  sh.getRange("A3:B9").setValues([
+    ["Teilnehmer", "=COUNTUNIQUE(Stimmen!B2:B)"],
+    ["Letzte Abgabe", "=IFERROR(IF(MAX(Stimmen!A2:A)=0, \"–\", MAX(Stimmen!A2:A)), \"–\")"],
+    ["Game-Ideen", "=COUNTA(Ideen!B2:B)"],
+    ["", ""],
+    ["🏆 Favorit (bester Ø Rang)", top("avg(F)", "asc", 1)],
+    // ohne einen einzigen 👍/👎 würde sonst ein zufälliges Game erscheinen
+    ["👍 Meiste Daumen hoch", "=IF(SUM(Stimmen!D2:D)=0, \"–\", " + top("sum(D)", "desc", 1).slice(1) + ")"],
+    ["👎 Meiste Daumen runter", "=IF(SUM(Stimmen!E2:E)=0, \"–\", " + top("sum(E)", "desc", 1).slice(1) + ")"],
+  ]);
+  sh.getRange("A11").setValue("Top 3");
+  sh.getRange("B11").setFormula(top("avg(F)", "asc", 3));
+  sh.getRange("D1").setValue("Alle Games: siehe Tab Auswertung");
+
+  sh.getRange("A1").setFontSize(16).setFontWeight("bold");
+  sh.getRange("A3:A11").setFontWeight("bold");
+  sh.getRange("B7:B13").setFontWeight("bold").setFontSize(12);
+  sh.getRange("B4").setNumberFormat("dd.MM.yyyy HH:mm");
+  sh.getRange("D1").setFontColor("#888888");
+  sh.setColumnWidth(1, 230);
+  sh.setColumnWidth(2, 260);
 }
