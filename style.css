@@ -399,7 +399,19 @@ footer { text-align: center; color: var(--mute); padding: 120px 16px 140px; }
   .r-img { width: 64px; height: 40px; }
   .r-name { font-size: 14px; }
   .hud-bar { width: 50px; }
-  .anon { border-radius: 18px; }
+  /* hero: Poster-Stack, jedes Wort eigene Zeile */
+  .hero { padding-top: 48px; padding-bottom: 24px; }
+  .hero-top { margin-bottom: 20px; }
+  .title { font-size: 16vw; line-height: .84; }
+  .title span { width: min-content; }
+  .anon { margin-top: 28px; padding: 12px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 12px; }
+  .steps li { padding: 10px 12px; border-radius: 14px; font-size: 13px; }
+  .steps .mono { display: block; margin: 0 0 2px; }
+  .idform { margin-top: 28px; }
+  .track { gap: 40px; }
+  .track img { height: 34px; width: 120px; }
+  .track .mq-txt { font-size: 20px; }
   .idrow { flex-direction: column; }
   .idrow input { padding: 16px 20px; }
   .idrow .cta { justify-content: center; }

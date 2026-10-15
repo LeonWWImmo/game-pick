@@ -177,10 +177,7 @@
     hud.classList.toggle("complete", done);
     renderRank();
     submit.className = "submit";
-    if (!done) {
-      submit.classList.add("locked");
-      submit.textContent = `Noch ${all - n} Game${all - n > 1 ? "s" : ""} bewerten ↑`;
-    } else if (!S.voter) {
+    if (!S.voter) {
       submit.classList.add("locked");
       submit.textContent = "Zuerst deine Zahl eingeben ↑";
     } else if (S.sent) {
@@ -206,13 +203,6 @@
   }
 
   submit.addEventListener("click", async () => {
-    const missing = GAMES.find((g) => !S.votes[g.id]);
-    if (missing) {
-      const c = $(`.card[data-id="${missing.id}"]`);
-      c.scrollIntoView({ behavior: "smooth", block: "center" });
-      c.animate([{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(10px)" }, { transform: "translateX(0)" }], { duration: 400, delay: 500 });
-      return;
-    }
     if (!S.voter) {
       $(".hero").scrollIntoView({ behavior: "smooth" });
       setTimeout(() => voterInput.focus({ preventScroll: true }), 600);
@@ -226,7 +216,7 @@
       const r = await post({
         type: "vote",
         voter: S.voter,
-        votes: GAMES.map((g) => ({ game: g.name, vote: S.votes[g.id], rank: order.indexOf(g.id) + 1 })),
+        votes: GAMES.map((g) => ({ game: g.name, vote: S.votes[g.id] || 0, rank: order.indexOf(g.id) + 1 })),
       });
       if (!r.ok) throw new Error(r.error);
       S.sent = true; save();
