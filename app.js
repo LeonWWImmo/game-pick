@@ -13,8 +13,8 @@
 
   const THUMB = `<svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
   const THUMB_DOWN = THUMB.replace("<path", '<g transform="rotate(180 12 12)"><path').replace("</svg>", "</g></svg>");
-  const img = (g) => `assets/img/${g.id}-hero.jpg`;
-  const logo = (g) => `assets/img/${g.id}-logo.png`;
+  const img = (g) => `assets/img/${g.id}-hero.webp`;
+  const logo = (g) => `assets/img/${g.id}-logo.webp`;
   const byId = Object.fromEntries(GAMES.map((g) => [g.id, g]));
 
   // ---------- hero ----------
@@ -210,7 +210,7 @@
     }
     if (!CONFIG.endpoint) return toast("Noch kein Endpoint eingerichtet (data.js → CONFIG.endpoint)", true);
     submit.classList.add("busy");
-    submit.textContent = "Sende…";
+    submit.textContent = "Sende… (dauert ein paar Sekunden)";
     const order = currentOrder();
     try {
       const r = await post({
@@ -229,8 +229,18 @@
   });
 
   // ---------- ideas (Liste kommt live aus dem Sheet) ----------
-  const ideaList = $("#ideaList");
+  // Apps Script braucht 2–20 s → Liste aus Cache sofort zeigen, Änderungen sofort anzeigen, im Hintergrund abgleichen
+  const ideaList = $("#ideaList"), IDEAS_KEY = "gamepick.ideas";
   let ideas = null, adminPw = "";
+  try { ideas = JSON.parse(localStorage.getItem(IDEAS_KEY)); } catch {}
+  if (!Array.isArray(ideas)) ideas = null;
+
+  const setIdeas = (list) => {
+    ideas = list;
+    try { localStorage.setItem(IDEAS_KEY, JSON.stringify(list.filter((i) => !i.pending).map(({ id, name }) => ({ id, name })))); } catch {}
+    renderIdeas();
+  };
+  const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
   function renderIdeas(msg) {
     ideaList.innerHTML = "";
@@ -241,9 +251,10 @@
     }
     ideas.forEach((idea, i) => {
       const li = document.createElement("li");
+      li.className = idea.pending ? "pending" : idea.fresh ? "fresh" : "";
       li.innerHTML = `<span class="mono">${String(i + 1).padStart(2, "0")}</span>`;
       li.append(idea.name);
-      if (adminPw) {
+      if (adminPw && !idea.pending) {
         const del = document.createElement("button");
         del.className = "idea-del";
         del.textContent = "✕";
@@ -257,30 +268,37 @@
 
   async function loadIdeas() {
     if (!CONFIG.endpoint) return renderIdeas("Noch kein Endpoint eingerichtet.");
-    renderIdeas("Lädt…");
+    if (ideas) renderIdeas(); else renderIdeas("Lädt…");
     try {
       const r = await (await fetch(CONFIG.endpoint)).json();
-      ideas = r.ideas || [];
-      renderIdeas();
+      const pending = (ideas || []).filter((i) => i.pending);
+      setIdeas([...(r.ideas || []), ...pending]);
     } catch {
-      renderIdeas("Ideen konnten nicht geladen werden.");
+      if (!ideas) renderIdeas("Ideen konnten nicht geladen werden.");
     }
   }
 
   $("#ideaForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const input = $("#ideaInput"), name = input.value.trim();
+    const input = $("#ideaInput"), name = input.value.trim().slice(0, 60);
     if (!name) return;
     if (!CONFIG.endpoint) return toast("Noch kein Endpoint eingerichtet (data.js → CONFIG.endpoint)", true);
+    if ((ideas || []).some((i) => sameName(i.name, name))) return toast("Steht schon auf der Liste 👀", true);
+    // sofort anzeigen, Server bestätigt im Hintergrund
+    const temp = { id: "tmp" + Date.now(), name, pending: true };
+    setIdeas([...(ideas || []), temp]);
+    input.value = "";
+    burst(e.submitter || input, ["#c6ff3d", "#fff"], 12, 70);
+    toast("Idee hinzugefügt 💡");
     try {
       const r = await post({ type: "idea", idea: name });
       if (!r.ok) throw new Error(r.error);
-      ideas = r.ideas; renderIdeas();
-      input.value = "";
-      burst(e.submitter || input, ["#c6ff3d", "#fff"], 12, 70);
-      toast("Idee geschickt 💡");
+      const others = ideas.filter((i) => i.pending && i !== temp);
+      setIdeas([...r.ideas.map((i) => (sameName(i.name, name) ? { ...i, fresh: true } : i)), ...others]);
     } catch {
-      toast("Senden fehlgeschlagen.", true);
+      setIdeas(ideas.filter((i) => i !== temp));
+      input.value = name;
+      toast("Speichern fehlgeschlagen, nochmal probieren.", true);
     }
   });
 
@@ -293,8 +311,9 @@
   });
   $("#adminForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const pw = $("#adminPw").value;
+    const pw = $("#adminPw").value, btn = $("#adminForm button");
     if (!pw) return;
+    btn.disabled = true; btn.textContent = "Prüfe…";
     try {
       const r = await post({ type: "admin", pw });
       if (!r.ok) return toast("Falsches Passwort", true);
@@ -304,32 +323,55 @@
       if (ideas) renderIdeas();
     } catch {
       toast("Login fehlgeschlagen.", true);
+    } finally {
+      btn.disabled = false; btn.textContent = "Login";
     }
   });
   ideaList.addEventListener("click", async (e) => {
     const del = e.target.closest(".idea-del");
     if (!del || !adminPw) return;
-    del.disabled = true;
+    // sofort entfernen, bei Fehler zurückholen
+    const before = ideas;
+    setIdeas(ideas.filter((i) => i.id !== del.dataset.id));
     try {
       const r = await post({ type: "deleteIdea", pw: adminPw, id: del.dataset.id });
       if (!r.ok) throw new Error(r.error);
-      ideas = r.ideas; renderIdeas();
-      toast("Gelöscht");
+      setIdeas([...r.ideas, ...ideas.filter((i) => i.pending)]);
     } catch {
-      del.disabled = false;
+      setIdeas(before);
       toast("Löschen fehlgeschlagen.", true);
     }
   });
 
   // ---------- trailer modal ----------
   const modal = $("#modal"), frame = $("#modalFrame");
+  // Verbindungen zu YouTube schon beim Hovern/Antippen aufbauen → Player startet schneller
+  let warmed = false;
+  const warmUp = () => {
+    if (warmed) return;
+    warmed = true;
+    ["https://www.youtube-nocookie.com", "https://www.google.com", "https://i.ytimg.com", "https://static.doubleclick.net"].forEach((href) => {
+      const l = document.createElement("link");
+      l.rel = "preconnect"; l.href = href;
+      document.head.append(l);
+    });
+  };
+  ["pointerover", "touchstart", "focusin"].forEach((ev) =>
+    $("#cards").addEventListener(ev, (e) => e.target.closest(".play") && warmUp(), { passive: true }));
+
   function openTrailer(id) {
+    warmUp();
+    // Vorschaubild + Spinner, bis der Player geladen ist
+    frame.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`;
+    frame.classList.add("loading");
     frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Trailer"></iframe>`;
+    frame.firstChild.addEventListener("load", () => frame.classList.remove("loading"), { once: true });
     modal.hidden = false;
     document.body.style.overflow = "hidden";
   }
   function closeTrailer() {
-    modal.hidden = true; frame.innerHTML = ""; document.body.style.overflow = "";
+    modal.hidden = true; frame.innerHTML = ""; frame.style.backgroundImage = ""; frame.classList.remove("loading");
+    document.body.style.overflow = "";
   }
   modal.addEventListener("click", (e) => { if (e.target === modal || e.target.closest(".modal-x")) closeTrailer(); });
   addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) closeTrailer(); });
