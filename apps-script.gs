@@ -127,19 +127,34 @@ function setup_(ss) {
   }
   const ideen = ss.getSheetByName("Ideen");
   if (!ideen.getRange("C1").getValue()) ideen.getRange("C1").setValue("ID");
+  // Formeln nur einmal pro Version schreiben (bei Änderungen SETUP_VERSION erhöhen)
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty("SETUP_VERSION") === SETUP_VERSION) return;
   const auswertung = ss.getSheetByName("Auswertung") || ss.insertSheet("Auswertung", 0);
-  if (auswertung.getRange("A1").getFormula().indexOf("Neutral") < 0) {
-    auswertung.getRange("A1").setFormula(
-      "=QUERY(Stimmen!A:G, \"select C, sum(D), sum(E), sum(G), avg(F), count(C) where C is not null group by C order by avg(F) asc " +
-      "label C 'Game', sum(D) '👍', sum(E) '👎', sum(G) '😐 Neutral', avg(F) 'Ø Rang', count(C) 'Stimmen'\", 1)"
-    );
-    auswertung.setFrozenRows(1);
+  auswertung.getRange("A1").setFormula(fx_(ss,
+    "=QUERY(Stimmen!A:G, \"select C, sum(D), sum(E), sum(G), avg(F), count(C) where C is not null group by C order by avg(F) asc " +
+    "label C 'Game', sum(D) '👍', sum(E) '👎', sum(G) '😐 Neutral', avg(F) 'Ø Rang', count(C) 'Stimmen'\", 1)"
+  ));
+  auswertung.setFrozenRows(1);
+  summary_(ss, ss.getSheetByName("Zusammenfassung") || ss.insertSheet("Zusammenfassung", 0));
+  props.setProperty("SETUP_VERSION", SETUP_VERSION);
+}
+
+const SETUP_VERSION = "2";
+
+// Formeln werden mit "," geschrieben; deutschsprachige Sheets brauchen ";" als Trenner
+function fx_(ss, formula) {
+  if (/^en/.test(ss.getSpreadsheetLocale())) return formula;
+  let out = "", inStr = false;
+  for (const ch of formula) {
+    if (ch === '"') inStr = !inStr;
+    out += !inStr && ch === "," ? ";" : ch;
   }
-  if (!ss.getSheetByName("Zusammenfassung")) summary_(ss.insertSheet("Zusammenfassung", 0));
+  return out;
 }
 
 // Übersichtsblatt: Kennzahlen + Top 3 (alles Formeln, aktualisiert sich selbst)
-function summary_(sh) {
+function summary_(ss, sh) {
   // agg z.B. "avg(F)"; nur die Game-Spalte wird ausgegeben
   const top = (agg, dir, n) =>
     "=IFERROR(INDEX(QUERY(Stimmen!A:F, \"select C, " + agg + " where C is not null group by C order by " + agg + " " + dir +
@@ -154,9 +169,9 @@ function summary_(sh) {
     // ohne einen einzigen 👍/👎 würde sonst ein zufälliges Game erscheinen
     ["👍 Meiste Daumen hoch", "=IF(SUM(Stimmen!D2:D)=0, \"–\", " + top("sum(D)", "desc", 1).slice(1) + ")"],
     ["👎 Meiste Daumen runter", "=IF(SUM(Stimmen!E2:E)=0, \"–\", " + top("sum(E)", "desc", 1).slice(1) + ")"],
-  ]);
+  ].map(([label, f]) => [label, f ? fx_(ss, f) : f]));
   sh.getRange("A11").setValue("Top 3");
-  sh.getRange("B11").setFormula(top("avg(F)", "asc", 3));
+  sh.getRange("B11").setFormula(fx_(ss, top("avg(F)", "asc", 3)));
   sh.getRange("D1").setValue("Alle Games: siehe Tab Auswertung");
 
   sh.getRange("A1").setFontSize(16).setFontWeight("bold");
